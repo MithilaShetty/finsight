@@ -1,0 +1,17 @@
+
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: finsight_db
+    environment:
+      POSTGRES_USER: finsight
+      POSTGRES_PASSWORD: finsight123
+      POSTGRES_DB: finsight
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
