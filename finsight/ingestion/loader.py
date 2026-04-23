@@ -43,14 +43,12 @@ def get_db_engine():
     )
     
     # Create and return the engine
-    # The engine is our permanent connection to the database
     return create_engine(connection_string)
 
 
 def get_stock_id(engine, ticker: str) -> int:
     """
     Look up the stock_id for a given ticker symbol.
-    We need this to link prices to the correct stock in daily_prices table.
     
     Args:
         engine: database connection
@@ -112,17 +110,21 @@ def load_prices_to_db(df: pd.DataFrame, engine) -> int:
     df = df[['stock_id', 'trade_date', 'open_price',
              'high_price', 'low_price', 'close_price', 'volume']]
     
-    # Insert into database
-    # if_exists='append' → add to existing rows, don't replace table
-    # index=False → don't write pandas index as a column
-    rows_inserted = df.to_sql(
-        name='daily_prices',
-        con=engine,
-        if_exists='append',
-        index=False,
-        method='multi'        # faster bulk insert
-    )
+    # Insert rows — ON CONFLICT DO NOTHING skips duplicates
+    with engine.connect() as conn:
+        for _, row in df.iterrows():
+            conn.execute(text("""
+                INSERT INTO daily_prices 
+                    (stock_id, trade_date, open_price, high_price, 
+                     low_price, close_price, volume)
+                VALUES 
+                    (:stock_id, :trade_date, :open_price, :high_price, 
+                     :low_price, :close_price, :volume)
+                ON CONFLICT (stock_id, trade_date) DO NOTHING
+            """), row.to_dict())
+        conn.commit()
     
+    rows_inserted = len(df)
     return rows_inserted
 
 
@@ -176,24 +178,24 @@ def run_pipeline(tickers: list, period: str = "1y"):
 # Run the pipeline when this file is executed directly
 if __name__ == "__main__":
     
-    # Start with 5 stocks to test
+    # All 50 stocks across 5 sectors
     test_tickers = [
-    # Technology
-    'AAPL', 'GOOGL', 'MSFT', 'NVDA', 'META',
-    'INTC', 'AMD', 'CRM', 'ORCL', 'ADBE',
-    # Finance
-    'JPM', 'BAC', 'GS', 'MS', 'WFC',
-    'C', 'BLK', 'AXP', 'SCHW', 'USB',
-    # Healthcare
-    'JNJ', 'PFE', 'UNH', 'ABBV', 'MRK',
-    'TMO', 'ABT', 'BMY', 'AMGN', 'GILD',
-    # Energy
-    'XOM', 'CVX', 'COP', 'SLB', 'EOG',
-    'PSX', 'VLO', 'MPC', 'HAL', 'DVN',
-    # Retail
-    'AMZN', 'WMT', 'TGT', 'COST', 'HD',
-    'LOW', 'NKE', 'SBUX', 'MCD', 'TJX'
-]
+        # Technology
+        'AAPL', 'GOOGL', 'MSFT', 'NVDA', 'META',
+        'INTC', 'AMD', 'CRM', 'ORCL', 'ADBE',
+        # Finance
+        'JPM', 'BAC', 'GS', 'MS', 'WFC',
+        'C', 'BLK', 'AXP', 'SCHW', 'USB',
+        # Healthcare
+        'JNJ', 'PFE', 'UNH', 'ABBV', 'MRK',
+        'TMO', 'ABT', 'BMY', 'AMGN', 'GILD',
+        # Energy
+        'XOM', 'CVX', 'COP', 'SLB', 'EOG',
+        'PSX', 'VLO', 'MPC', 'HAL', 'DVN',
+        # Retail
+        'AMZN', 'WMT', 'TGT', 'COST', 'HD',
+        'LOW', 'NKE', 'SBUX', 'MCD', 'TJX'
+    ]
     
     # Run pipeline
     run_pipeline(test_tickers, period="1y")
