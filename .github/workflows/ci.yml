@@ -1,0 +1,44 @@
+# =============================================================================
+# ci.yml
+# Purpose: Automatically run tests on every push to GitHub
+# Part of: FinSight Analytics Platform — Phase 4 (CI/CD)
+# Author: Mithila Papi Shetty
+# =============================================================================
+
+# Name of the pipeline shown on GitHub
+name: FinSight CI Pipeline
+
+# When to run this pipeline
+on:
+  push:
+    branches: [main]        # run when you push to main
+  pull_request:
+    branches: [main]        # run when you open a pull request
+
+# Jobs to run
+jobs:
+  test:
+    # Use Ubuntu Linux machine (GitHub provides this free)
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Download your code onto the GitHub machine
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Install Python 3.12
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      # Step 3: Install all your libraries
+      - name: Install dependencies
+        run: |
+          pip install pandas sqlalchemy psycopg2-binary yfinance \
+          aiohttp fastapi uvicorn apscheduler python-dotenv pytest openpyxl
+
+      # Step 4: Run your tests
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v
